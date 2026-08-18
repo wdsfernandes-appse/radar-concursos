@@ -4,7 +4,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import feedparser
-import requests
+import google.generativeai as genai
 
 # 1. Lista de Feeds RSS para monitorar
 FEEDS_NOTICIAS = [
@@ -19,7 +19,7 @@ def coletar_noticias():
     for url in FEEDS_NOTICIAS:
         try:
             feed = feedparser.parse(url)
-            for entry in feed.entries[:5]:  # Pega os 5 artigos mais recentes de cada
+            for entry in feed.entries[:5]:  # Pega as 5 notícias mais recentes de cada feed
                 textos.append(f"Título: {entry.title}\nLink: {entry.link}\nResumo: {entry.get('summary', '')[:250]}\n")
         except Exception as e:
             print(f"Erro ao ler feed {url}: {e}")
@@ -27,11 +27,12 @@ def coletar_noticias():
 
 def analisar_com_ia(conteudo, modo):
     api_key = os.environ.get("GEMINI_API_KEY")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("gemini-1.5-flash")
     
     if modo == "cupons":
         prompt = (
-            "Você é um assistente focado em encontrar promoções de concursos (Gran Concursos, Estratégia Concursos, etc).\n"
+            "Você é um assistente focado em encontrar promoções de concursos públicos (Gran Concursos, Estratégia Concursos, etc).\n"
             "Analise as seguintes publicações recentes e identifique cupons ativos, promoções relâmpago ou descontos válidos.\n"
             "Formate em tópicos claros com: Nome do Curso, Código do Cupom / Desconto, e o Link direto.\n"
             "Se não encontrar cupons explícitos, liste as principais ofertas de assinatura vigentes.\n\n"
@@ -46,13 +47,11 @@ def analisar_com_ia(conteudo, modo):
             f"Conteúdo:\n{conteudo}"
         )
 
-    payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    resp = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
-    
-    if resp.status_code == 200:
-        return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
-    else:
-        return f"Erro na IA: {resp.text}"
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"Erro na IA: {str(e)}"
 
 def enviar_email(assunto, corpo_texto):
     remetente = os.environ.get("EMAIL_ORIGEM")
