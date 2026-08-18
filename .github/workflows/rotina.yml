@@ -1,0 +1,42 @@
+name: Monitoramento Diario de Concursos
+
+on:
+  schedule:
+    # Horários em UTC (Horário de Brasília é UTC - 3)
+    # 11:00 UTC = 08:00 Brasília (Cupons matinais)
+    - cron: '0 11 * * *'
+    # 16:00 UTC = 13:00 Brasília (Notícias tarde)
+    - cron: '0 16 * * *'
+    # 21:00 UTC = 18:00 Brasília (Notícias noite)
+    - cron: '0 21 * * *'
+  workflow_dispatch: # Permite disparar manualmente com um clique
+
+jobs:
+  executar-radar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar bibliotecas
+        run: pip install -r requirements.txt
+
+      - name: Executar script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          EMAIL_ORIGEM: ${{ secrets.EMAIL_ORIGEM }}
+          EMAIL_SENHA: ${{ secrets.EMAIL_SENHA }}
+          EMAIL_DESTINO: ${{ secrets.EMAIL_DESTINO }}
+        run: |
+          # Se for a execução das 08h Brasília (11 UTC), roda cupons; nos outros, notícias.
+          HORA=$(date -u +%H)
+          if [ "$HORA" -eq "11" ]; then
+            python monitor.py cupons
+          else
+            python monitor.py noticias
+          fi
