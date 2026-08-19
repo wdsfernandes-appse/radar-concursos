@@ -1,13 +1,13 @@
 name: Radar Concursos Completo
 
 on:
-  schedule:
+schedule:
     # 11:08 UTC = 08:08 Brasília
-    - cron: '0 11 * * *'
+    - cron: '8 11 * * *'
     # 16:16 UTC = 13:16 Brasília
-    - cron: '0 16 * * *'
+    - cron: '16 16 * * *'
     # 21:08 UTC = 18:08 Brasília
-    - cron: '0 21 * * *'
+    - cron: '8 21 * * *'
   workflow_dispatch:
 
 permissions:
