@@ -2,14 +2,17 @@ name: Monitoramento Diario de Concursos
 
 on:
   schedule:
-    # Horários em UTC (Horário de Brasília é UTC - 3)
     # 11:00 UTC = 08:00 Brasília (Cupons matinais)
     - cron: '0 11 * * *'
     # 16:00 UTC = 13:00 Brasília (Notícias tarde)
     - cron: '0 16 * * *'
     # 21:00 UTC = 18:00 Brasília (Notícias noite)
     - cron: '0 21 * * *'
-  workflow_dispatch: # Permite disparar manualmente com um clique
+  workflow_dispatch:
+
+# Permite que o robô salve o histórico de volta no repositório
+permissions:
+  contents: write
 
 jobs:
   executar-radar:
@@ -33,10 +36,17 @@ jobs:
           EMAIL_SENHA: ${{ secrets.EMAIL_SENHA }}
           EMAIL_DESTINO: ${{ secrets.EMAIL_DESTINO }}
         run: |
-          # Se for a execução das 08h Brasília (11 UTC), roda cupons; nos outros, notícias.
           HORA=$(date -u +%H)
           if [ "$HORA" -eq "11" ]; then
             python monitor.py cupons
           else
             python monitor.py noticias
           fi
+
+      - name: Salvar historico de links enviados
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add historico.json || true
+          git commit -m "Atualiza historico de noticias [skip ci]" || echo "Sem novidades para salvar"
+          git push || echo "Nada para enviar"
