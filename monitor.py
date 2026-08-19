@@ -73,10 +73,10 @@ def coletar_tudo(historico):
     for url in FEEDS_NOTICIAS:
         try:
             feed = feedparser.parse(url)
-            for entry in feed.entries[:10]:
+            for entry in feed.entries[:12]:
                 link = entry.get("link", "")
                 if link and link not in historico:
-                    itens.append(f"[Portal RSS]: {entry.title}\nLink: {link}\nResumo: {entry.get('summary', '')[:250]}")
+                    itens.append(f"[Portal RSS]: {entry.title}\nLink: {link}\nResumo: {entry.get('summary', '')[:300]}")
                     novos_hashes[link] = agora
         except Exception as e:
             print(f"Erro RSS {url}: {e}")
@@ -86,7 +86,7 @@ def coletar_tudo(historico):
         try:
             feed = feedparser.parse(url)
             canal = feed.feed.get("title", "YouTube")
-            for entry in feed.entries[:5]:
+            for entry in feed.entries[:6]:
                 link = entry.get("link", "")
                 if link and link not in historico:
                     itens.append(f"[YouTube - {canal}]: {entry.title}\nLink: {link}")
@@ -153,26 +153,27 @@ def analisar_unificado(conteudo):
     model = genai.GenerativeModel(obter_modelo())
 
     prompt = (
-        "Você é um jornalista analista sênior e caçador de ofertas de concursos públicos no Brasil.\n"
-        "Analise todos os dados coletados abaixo (notícias, vídeos do YouTube, mensagens de Telegram e páginas de desconto) "
-        "e monte um e-mail estruturado exatamente com as DUAS seções abaixo:\n\n"
+        "Você é um jornalista analista de concursos públicos no Brasil e especialista em encontrar promoções reais.\n"
+        "Analise os dados coletados abaixo e monte um relatório direto, informativo e atraente dividido em DUAS SEÇÕES:\n\n"
         "=========================================\n"
-        "🔥 SEÇÃO 1: NOTÍCIAS QUENTES E EDITAIS (8 a 15 Destaques)\n"
+        "🔥 SEÇÃO 1: NOTÍCIAS QUENTES E EDITAIS RELEVANTES (8 a 15 Destaques)\n"
         "=========================================\n"
-        "Priorize: Concursos Nacionais (CNU, INSS, Caixa, BB, Correios, PF, PRF), Área Fiscal (Receita Federal, SEFAZs, ISSs), "
-        "Área de Controle/Gestão (TCU, CGU, TCEs, CGEs) e Grandes Tribunais.\n"
-        "Formato de cada item:\n"
-        "📌 **[Nome do Concurso / Órgão] — [Status: Edital / Banca / Comissão / Autorizado / Previsão]**\n"
-        "- **Resumo:** Vagas, remuneração, cargos ou data crucial (2 a 3 linhas).\n"
-        "- **Fonte / Link:** [URL ou canal]\n\n"
+        "CRITÉRIOS DE SELEÇÃO:\n"
+        "1. PRIORIZE FATOS CONCRETOS E ATRAENTES: Edital Publicado, Inscrições Abertas, Banca Definida, Comissão Formada, Autorização Oficial ou Salários/Vagas Expressivas.\n"
+        "2. ABRANGÊNCIA: Traga tanto os Grandes Concursos Nacionais/Federais/Fiscais/Controle/Tribunais quanto Concursos Estaduais, Universidades Federais, Defensorias, Conselhos e Secretarias Estaduais que tenham boas oportunidades.\n"
+        "3. O QUE DESCARTAR: Descarte retificações burocráticas menores (ex: mudança de local de prova ou prazos administrativos sem impacto), dicas genéricas de estudo ou avisos vazios de lives sem notícia factual.\n\n"
+        "FORMATO DE CADA ITEM:\n"
+        "📌 **[Nome do Órgão / Concurso] — [Status: Edital Publicado / Inscrições Abertas / Banca Definida / Autorizado / Previsão]**\n"
+        "- **Resumo:** Número de vagas, remuneração inicial, cargos em destaque ou data-limite importante (2 a 3 linhas bem diretas).\n"
+        "- **Link / Fonte:** [URL da matéria ou Canal de Origem]\n\n"
         "=========================================\n"
         "🎟️ SEÇÃO 2: CUPONS, DESCONTOS E PROMOÇÕES ATIVAS\n"
         "=========================================\n"
-        "Extraia todos os cupons ativos, promoções de lote, descontos de assinaturas (Gran Cursos, Estratégia, Direção, etc.) "
-        "encontrados nas páginas de desconto, canais do Telegram ou transmissões do YouTube.\n"
-        "Liste a instituição, código do cupom / desconto e o link de acesso.\n"
-        "Se não houver cupom específico novo, resuma brevemente as principais ofertas vigentes encontradas.\n\n"
-        f"Conteúdo para análise:\n{conteudo}"
+        "Extraia e organize cupons de desconto ativos, lotes promocionais de assinaturas (Gran, Estratégia, Direção, etc.) "
+        "encontrados nas páginas de desconto, canais do Telegram ou YouTube.\n"
+        "Indique a Instituição, Código do Cupom / Desconto e o Link correspondente.\n"
+        "Se não houver cupons explícitos novos, resuma as melhores ofertas vigentes de assinaturas.\n\n"
+        f"Dados coletados para triagem:\n{conteudo}"
     )
 
     try:
@@ -200,7 +201,7 @@ def enviar_email(corpo):
     print(f"E-mail enviado com sucesso para: {lista_destinatarios}")
 
 if __name__ == "__main__":
-    print("Iniciando varredura unificada...")
+    print("Iniciando varredura com filtro calibrado...")
     historico = carregar_historico()
     novidades, novos_hashes = coletar_tudo(historico)
 
