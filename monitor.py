@@ -19,16 +19,37 @@ def coletar_noticias():
     for url in FEEDS_NOTICIAS:
         try:
             feed = feedparser.parse(url)
-            for entry in feed.entries[:5]:  # Pega as 5 notícias mais recentes de cada feed
+            for entry in feed.entries[:5]:  # 5 notícias mais recentes de cada
                 textos.append(f"Título: {entry.title}\nLink: {entry.link}\nResumo: {entry.get('summary', '')[:250]}\n")
         except Exception as e:
             print(f"Erro ao ler feed {url}: {e}")
     return "\n---\n".join(textos)
 
+def obter_modelo_valido():
+    """Identifica automaticamente o melhor modelo de texto liberado na sua chave."""
+    try:
+        modelos = [
+            m.name for m in genai.list_models()
+            if "generateContent" in m.supported_generation_methods
+        ]
+        # Prioriza qualquer versão Flash disponível
+        for m in modelos:
+            if "flash" in m.lower():
+                return m
+        # Se não achar flash, pega o primeiro modelo compatível disponível
+        if modelos:
+            return modelos[0]
+    except Exception as e:
+        print(f"Aviso ao listar modelos: {e}")
+    return "gemini-1.5-flash-latest"
+
 def analisar_com_ia(conteudo, modo):
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    
+    nome_modelo = obter_modelo_valido()
+    print(f"Utilizando o modelo: {nome_modelo}")
+    model = genai.GenerativeModel(nome_modelo)
     
     if modo == "cupons":
         prompt = (
@@ -54,9 +75,9 @@ def analisar_com_ia(conteudo, modo):
         return f"Erro na IA: {str(e)}"
 
 def enviar_email(assunto, corpo_texto):
-    remetente = os.environ.get("EMAIL_ORIGEM")
-    senha = os.environ.get("EMAIL_SENHA")
-    destinatario = os.environ.get("EMAIL_DESTINO")
+    remetente = os.environ.get("EMAIL_ORIGEM", "").strip()
+    senha = os.environ.get("EMAIL_SENHA", "").strip()
+    destinatario = os.environ.get("EMAIL_DESTINO", "").strip()
 
     msg = MIMEMultipart()
     msg["From"] = remetente
