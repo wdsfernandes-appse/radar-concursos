@@ -13,35 +13,36 @@ import google.generativeai as genai
 
 HISTORICO_ARQUIVO = "historico.json"
 
-# 1. Feeds RSS de Notícias
+# 1. Feeds RSS de Notícias (Folha Dirigida / Qconcursos no topo da prioridade)
 FEEDS_NOTICIAS = [
-    "https://folhadirigida.com.br/feed/",
-    "https://blog.grancursosonline.com.br/feed/",
-    "https://www.estrategiaconcursos.com.br/blog/feed/",
-    "https://proximosconcursos.com/feed/"
+    {"nome": "Folha Dirigida / Qconcursos", "url": "https://folha.qconcursos.com/feed/", "prioridade": True},
+    {"nome": "Folha Dirigida (Blog)", "url": "https://folhadirigida.com.br/feed/", "prioridade": True},
+    {"nome": "Gran Cursos Online", "url": "https://blog.grancursosonline.com.br/feed/", "prioridade": False},
+    {"nome": "Estratégia Concursos", "url": "https://www.estrategiaconcursos.com.br/blog/feed/", "prioridade": False},
+    {"nome": "Próximos Concursos", "url": "https://proximosconcursos.com/feed/", "prioridade": False}
 ]
 
-# 2. Feeds RSS do YouTube
+# 2. Feeds RSS do YouTube (Folha Dirigida prioritária)
 FEEDS_YOUTUBE = [
-    "https://www.youtube.com/feeds/videos.xml?channel_id=UC7m-d1i6F_tH_w0Y0P3y0Xw", # Folha Dirigida
-    "https://www.youtube.com/feeds/videos.xml?channel_id=UC6PjQvC_3_qN-Uj9h1m0g6w", # Gran
-    "https://www.youtube.com/feeds/videos.xml?channel_id=UCs7z5QJbF7rYmO2m2y5s2gA", # Estratégia
-    "https://www.youtube.com/feeds/videos.xml?channel_id=UCO6p2bA_uB9Q9t1y1e9z9qg"  # Direção
+    {"nome": "Folha Dirigida por Qconcursos", "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC7m-d1i6F_tH_w0Y0P3y0Xw", "prioridade": True},
+    {"nome": "Gran Concursos", "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC6PjQvC_3_qN-Uj9h1m0g6w", "prioridade": False},
+    {"nome": "Estratégia Concursos", "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCs7z5QJbF7rYmO2m2y5s2gA", "prioridade": False},
+    {"nome": "Direção Concursos", "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCO6p2bA_uB9Q9t1y1e9z9qg", "prioridade": False}
 ]
 
-# 3. Canais do Telegram
+# 3. Canais Oficiais do Telegram
 CANAIS_TELEGRAM = [
-    "folhadirigidanoticias",
-    "GranCursosNoticias",
-    "GranCursosFiscais",
-    "GranCursosGestaoeControle",
-    "GranCursosTribunais",
-    "CaminhoCertoTCESC",
-    "JornadaDoEscrevente",
-    "bancodobrasilec"
+    {"nome": "folhadirigidanoticias", "prioridade": True},
+    {"nome": "GranCursosNoticias", "prioridade": False},
+    {"nome": "GranCursosFiscais", "prioridade": False},
+    {"nome": "GranCursosGestaoeControle", "prioridade": False},
+    {"nome": "GranCursosTribunais", "prioridade": False},
+    {"nome": "CaminhoCertoTCESC", "prioridade": False},
+    {"nome": "JornadaDoEscrevente", "prioridade": False},
+    {"nome": "bancodobrasilec", "prioridade": False}
 ]
 
-# 4. Páginas de Cupons
+# 4. Páginas de Cupons e Ofertas
 URLS_CUPONS = [
     {"nome": "Cuponomia - Gran Cursos", "url": "https://www.cuponomia.com.br/desconto/gran-cursos"},
     {"nome": "Cuponomia - Estratégia Concursos", "url": "https://www.cuponomia.com.br/desconto/estrategia-concursos"},
@@ -80,49 +81,67 @@ def formatar_data(entry):
     return "Recente"
 
 def coletar_tudo(historico):
-    itens = []
+    itens_prioritarios = []
+    itens_complementares = []
     novos_hashes = {}
     agora = time.time()
 
-    # 1. RSS (Coleta integral das últimas 48h sem corte de palavras)
-    for url in FEEDS_NOTICIAS:
+    # 1. Coleta Portais RSS
+    for feed_info in FEEDS_NOTICIAS:
+        url = feed_info["url"]
+        nome = feed_info["nome"]
+        eh_prioridade = feed_info["prioridade"]
         try:
             feed = feedparser.parse(url)
             for entry in feed.entries[:15]:
                 link = entry.get("link", "")
                 if link and link not in historico and eh_recente(entry, 48):
                     data_pub = formatar_data(entry)
-                    itens.append(
-                        f"[Portal RSS - {data_pub}]\n"
+                    tag_prefixo = "⭐ [FONTE PRIORITÁRIA - FOLHA DIRIGIDA / QCONCURSOS]" if eh_prioridade else f"[{nome}]"
+                    texto_item = (
+                        f"{tag_prefixo} Publicado em: {data_pub}\n"
                         f"Título: {entry.title}\n"
                         f"Link: {link}\n"
                         f"Resumo: {entry.get('summary', '')[:300]}"
                     )
+                    if eh_prioridade:
+                        itens_prioritarios.append(texto_item)
+                    else:
+                        itens_complementares.append(texto_item)
                     novos_hashes[link] = agora
         except Exception as e:
-            print(f"Erro RSS {url}: {e}")
+            print(f"Erro RSS {nome} ({url}): {e}")
 
-    # 2. YouTube
-    for url in FEEDS_YOUTUBE:
+    # 2. Coleta YouTube
+    for yt_info in FEEDS_YOUTUBE:
+        url = yt_info["url"]
+        nome = yt_info["nome"]
+        eh_prioridade = yt_info["prioridade"]
         try:
             feed = feedparser.parse(url)
-            canal = feed.feed.get("title", "YouTube")
             for entry in feed.entries[:8]:
                 link = entry.get("link", "")
                 if link and link not in historico and eh_recente(entry, 48):
                     data_pub = formatar_data(entry)
-                    itens.append(
-                        f"[Vídeo YouTube - {canal} - {data_pub}]\n"
+                    tag_prefixo = "⭐ [VÍDEO PRIORITÁRIO - FOLHA DIRIGIDA]" if eh_prioridade else f"[Vídeo - {nome}]"
+                    texto_item = (
+                        f"{tag_prefixo} Publicado em: {data_pub}\n"
                         f"Título: {entry.title}\n"
                         f"Link: {link}"
                     )
+                    if eh_prioridade:
+                        itens_prioritarios.append(texto_item)
+                    else:
+                        itens_complementares.append(texto_item)
                     novos_hashes[link] = agora
         except Exception as e:
-            print(f"Erro YouTube {url}: {e}")
+            print(f"Erro YouTube {nome}: {e}")
 
-    # 3. Telegram
+    # 3. Coleta Telegram
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-    for canal in CANAIS_TELEGRAM:
+    for tg_info in CANAIS_TELEGRAM:
+        canal = tg_info["nome"]
+        eh_prioridade = tg_info["prioridade"]
         try:
             url = f"https://t.me/s/{canal}"
             resp = requests.get(url, headers=headers, timeout=12)
@@ -134,12 +153,18 @@ def coletar_tudo(historico):
                     if texto and len(texto) > 20:
                         msg_hash = hashlib.md5(texto.encode("utf-8")).hexdigest()
                         if msg_hash not in historico:
-                            itens.append(f"[Telegram @{canal}]: {texto}")
+                            tag_prefixo = "⭐ [TELEGRAM PRIORITÁRIO - FOLHA DIRIGIDA]" if eh_prioridade else f"[Telegram @{canal}]"
+                            texto_item = f"{tag_prefixo}: {texto}"
+                            if eh_prioridade:
+                                itens_prioritarios.append(texto_item)
+                            else:
+                                itens_complementares.append(texto_item)
                             novos_hashes[msg_hash] = agora
         except Exception as e:
             print(f"Erro Telegram @{canal}: {e}")
 
-    # 4. Cupons
+    # 4. Coleta Cupons e Ofertas
+    itens_cupons = []
     for item in URLS_CUPONS:
         url = item["url"]
         nome = item["nome"]
@@ -149,7 +174,7 @@ def coletar_tudo(historico):
                 for entry in feed.entries[:4]:
                     link = entry.get("link", "")
                     if link and link not in historico and eh_recente(entry, 48):
-                        itens.append(f"[Cupom - {nome}]: {entry.title}\nLink: {link}")
+                        itens_cupons.append(f"[Cupom - {nome}]: {entry.title}\nLink: {link}")
                         novos_hashes[link] = agora
             else:
                 resp = requests.get(url, headers=headers, timeout=12)
@@ -158,11 +183,12 @@ def coletar_tudo(historico):
                     ofertas = soup.find_all(["h3", "h4", "p", "span"], limit=30)
                     textos = [elem.get_text(strip=True) for elem in ofertas if len(elem.get_text(strip=True)) > 15]
                     resumo_pagina = " | ".join(textos[:8])
-                    itens.append(f"[Página de Desconto - {nome}]: {resumo_pagina}\nLink: {url}")
+                    itens_cupons.append(f"[Página de Desconto - {nome}]: {resumo_pagina}\nLink: {url}")
         except Exception as e:
             print(f"Erro Cupons {nome}: {e}")
 
-    return itens, novos_hashes
+    todos_itens = itens_prioritarios + itens_complementares + itens_cupons
+    return todos_itens, novos_hashes
 
 def obter_modelo():
     try:
@@ -180,24 +206,27 @@ def analisar_unificado(conteudo):
 
     prompt = (
         "Você é um jornalista analista sênior de concursos públicos no Brasil.\n"
-        "Analise todo o material coletado nas últimas horas abaixo e selecione as notícias e cupons reais.\n\n"
+        "Analise todo o material coletado nas últimas horas e elabore um boletim objetivo.\n\n"
+        "🎯 DIRETRIZ PRINCIPAL DE FONTES:\n"
+        "1. DÊ PRIORIDADE MÁXIMA PARA A FOLHA DIRIGIDA / QCONCURSOS (itens marcados com ⭐). Se a Folha noticiou determinado concurso, priorize o resumo e o link dela.\n"
+        "2. Em seguida, COMPLEMENTE com as novidades relevantes dos outros portais (Estratégia, Gran, Direção, etc.).\n\n"
         "CRITÉRIOS DE SELEÇÃO:\n"
-        "1. PRIORIZE NOTÍCIAS COM FATOS REAIS: Edital publicado, abertura de inscrições, banca contratada, comissão formada, autorização ou movimentações concretas de vagas/salários.\n"
-        "2. DESCARTE APENAS: Artigos que sejam puramente guias de estudo sem notícia alguma (ex: 'como estudar matemática do zero') ou matérias antigas encerradas.\n"
-        "3. NÃO invente concursos nem cupons ilustrativos.\n\n"
+        "- Priorize fatos reais: editais na praça, inscrições abertas, bancas contratadas, comissões, autorizações e concursos de apelo nacional, fiscal, controle e tribunais.\n"
+        "- Descarte apenas guias teóricos sem notícia (ex: 'como estudar para concurso') e notícias encerradas.\n"
+        "- Não invente notícias nem crie códigos de cupons ilustrativos.\n\n"
         "ESTRUTURA DO E-MAIL:\n\n"
         "=========================================\n"
-        "🔥 SEÇÃO 1: NOTÍCIAS QUENTES E EDITAIS\n"
+        "🔥 SEÇÃO 1: NOTÍCIAS QUENTES E EDITAIS RECENTES\n"
         "=========================================\n"
-        "📌 **[Nome do Órgão / Concurso] — [Status / Destaque]**\n"
-        "- **Resumo:** Vagas, remuneração, datas ou ato oficial em destaque.\n"
-        "- **Link / Fonte:** [Link original da matéria ou canal]\n\n"
+        "📌 **[Nome do Concurso] — [Status / Destaque]**\n"
+        "- **Resumo:** Vagas, salários, cargos ou ato oficial em destaque (2 a 3 linhas objetivas).\n"
+        "- **Fonte / Link:** [Link original]\n\n"
         "=========================================\n"
         "🎟️ SEÇÃO 2: CUPONS E OFERTAS ATIVAS\n"
         "=========================================\n"
-        "Liste descontos, cashbacks ou cupons reais identificados.\n"
-        "Se não houver cupons explícitos novos no momento, informe: 'Nenhum cupom inédito detectado nas fontes nesta rodada.'\n\n"
-        f"CONTEÚDO PARA ANÁLISE:\n{conteudo}"
+        "Liste cupons e ofertas reais ativas identificadas nas fontes.\n"
+        "Se não houver cupom específico novo, informe: 'Nenhum cupom inédito detectado nas fontes nesta rodada.'\n\n"
+        f"DADOS COLETADOS:\n{conteudo}"
     )
 
     try:
@@ -216,7 +245,7 @@ def enviar_email(corpo):
     msg = MIMEMultipart()
     msg["From"] = remetente
     msg["To"] = ", ".join(lista_destinatarios)
-    msg["Subject"] = "🔥 Radar Concursos: Notícias Quentes + Cupons"
+    msg["Subject"] = "🔥 Radar Concursos: Folha Dirigida & Notícias Quentes"
     msg.attach(MIMEText(corpo, "plain", "utf-8"))
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
@@ -225,12 +254,12 @@ def enviar_email(corpo):
     print(f"E-mail enviado com sucesso para: {lista_destinatarios}")
 
 if __name__ == "__main__":
-    print("Iniciando varredura segura...")
+    print("Iniciando varredura com prioridade na Folha Dirigida / Qconcursos...")
     historico = carregar_historico()
     novidades, novos_hashes = coletar_tudo(historico)
 
     if novidades:
-        print(f"Coletados {len(novidades)} itens novos e recentes. Analisando...")
+        print(f"Coletados {len(novidades)} itens. Processando na IA...")
         relatorio = analisar_unificado("\n---\n".join(novidades))
         enviar_email(relatorio)
         
