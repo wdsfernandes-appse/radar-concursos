@@ -1,16 +1,15 @@
-name: Monitoramento Diario de Concursos
+name: Radar Concursos Completo
 
 on:
   schedule:
-    # 11:00 UTC = 08:00 Brasília (Cupons matinais)
+    # 11:00 UTC = 08:00 Brasília
     - cron: '0 11 * * *'
-    # 16:00 UTC = 13:00 Brasília (Notícias tarde)
+    # 16:00 UTC = 13:00 Brasília
     - cron: '0 16 * * *'
-    # 21:00 UTC = 18:00 Brasília (Notícias noite)
+    # 21:00 UTC = 18:00 Brasília
     - cron: '0 21 * * *'
   workflow_dispatch:
 
-# Permite que o robô salve o histórico de volta no repositório
 permissions:
   contents: write
 
@@ -29,24 +28,18 @@ jobs:
       - name: Instalar bibliotecas
         run: pip install -r requirements.txt
 
-      - name: Executar script
+      - name: Executar script completo
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           EMAIL_ORIGEM: ${{ secrets.EMAIL_ORIGEM }}
           EMAIL_SENHA: ${{ secrets.EMAIL_SENHA }}
           EMAIL_DESTINO: ${{ secrets.EMAIL_DESTINO }}
-        run: |
-          HORA=$(date -u +%H)
-          if [ "$HORA" -eq "11" ]; then
-            python monitor.py cupons
-          else
-            python monitor.py noticias
-          fi
+        run: python monitor.py
 
-      - name: Salvar historico de links enviados
+      - name: Salvar historico
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add historico.json || true
-          git commit -m "Atualiza historico de noticias [skip ci]" || echo "Sem novidades para salvar"
+          git commit -m "Atualiza historico [skip ci]" || echo "Sem novidades"
           git push || echo "Nada para enviar"
