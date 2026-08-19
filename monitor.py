@@ -162,18 +162,21 @@ def analisar_com_ia(conteudo, modo):
 def enviar_email(assunto, corpo_texto):
     remetente = os.environ.get("EMAIL_ORIGEM", "").strip()
     senha = os.environ.get("EMAIL_SENHA", "").strip()
-    destinatario = os.environ.get("EMAIL_DESTINO", "").strip()
+    destinatarios_brutos = os.environ.get("EMAIL_DESTINO", "").strip()
+    
+    # Separa os e-mails por vírgula em uma lista limpa
+    lista_destinatarios = [e.strip() for e in destinatarios_brutos.split(",") if e.strip()]
 
     msg = MIMEMultipart()
     msg["From"] = remetente
-    msg["To"] = destinatario
+    msg["To"] = ", ".join(lista_destinatarios)
     msg["Subject"] = assunto
     msg.attach(MIMEText(corpo_texto, "plain", "utf-8"))
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(remetente, senha)
-        server.sendmail(remetente, destinatario, msg.as_string())
-    print("E-mail enviado com sucesso!")
+        server.sendmail(remetente, lista_destinatarios, msg.as_string())
+    print(f"E-mail enviado com sucesso para: {lista_destinatarios}")
 
 if __name__ == "__main__":
     modo = sys.argv[1] if len(sys.argv) > 1 else "noticias"
